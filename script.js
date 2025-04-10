@@ -56,7 +56,6 @@ const teams = [
     worldwideFansMillions: 400,
   },
 ];
-
 async function addTeams() {
   const teamsCollection = collection(db, "teams");
   for (const team of teams) {
