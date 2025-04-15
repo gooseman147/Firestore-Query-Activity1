@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>IS424 Firebase Full Project</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  </head>
+  <body>
+    <h1>IS424 Firebase Project</h1>
+    <p>Open the console and see results below:</p>
+    <div id="output"></div>
+
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyBJCmZ2702Sw---93iokmamhSvzj88darE",
+        authDomain: "infosys421-2b68b.firebaseapp.com",
+        projectId: "infosys421-2b68b",
+        storageBucket: "infosys421-2b68b.appspot.com",
+        messagingSenderId: "485545239852",
+        appId: "1:485545239852:web:e43c5a590c5cf6363db889",
+        measurementId: "G-S0JLM4DE74",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      const outputDiv = document.getElementById("output");
+      const showResults = (title, results) => {
+        const section = document.createElement("div");
+        section.innerHTML =
+          `<h3>${title}</h3><ul>` +
+          results.map((t) => `<li>${t.name}</li>`).join("") +
+          "</ul>";
+        outputDiv.appendChild(section);
+        console.log(title, results);
+      };
+
+      const seedData = async () => {
+        const teams = [
+          {
+            name: "Real Madrid",
+            city: "Madrid",
+            country: "Spain",
+            top_scorers: ["Ronaldo", "Benzema", "Hazard"],
+            fans: 798,
+          },
+          {
+            name: "Barcelona",
+            city: "Barcelona",
+            country: "Spain",
+            top_scorers: ["Messi", "Suarez", "Puyol"],
+            fans: 738,
+          },
+          {
+            name: "Manchester United",
+            city: "Manchester",
+            country: "England",
+            top_scorers: ["Cantona", "Rooney", "Ronaldo"],
+            fans: 755,
+          },
+          {
+            name: "Manchester City",
+            city: "Manchester",
+            country: "England",
+            top_scorers: ["Sterling", "Aguero", "Haaland"],
+            fans: 537,
+          },
+          {
+            name: "Brazil National Team",
+            city: "Not applicable",
+            country: "Brazil",
+            top_scorers: ["Ronaldinho", "Cafu", "Bebeto"],
+            fans: 950,
+            national: true,
+          },
+          {
+            name: "Argentina National Team",
+            city: "Not applicable",
+            country: "Argentina",
+            top_scorers: ["Messi", "Batistuta", "Maradona"],
+            fans: 888,
+            national: true,
+          },
+          {
+            name: "Atletico Madrid",
+            city: "Madrid",
+            country: "Spain",
+            top_scorers: ["Aragonés", "Griezmann", "Torez"],
+            fans: 400,
+          },
+        ];
+
+        for (let team of teams) {
+          const exists = await db
+            .collection("teams")
+            .where("name", "==", team.name)
+            .get();
+
+          if (exists.empty) {
+            await db.collection("teams").add(team);
+            console.log(`${team.name} added to Firestore`);
+          }
+        }
+      };
+
+      const runQueries = async () => {
+        const allTeams = (await db.collection("teams").get()).docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() })
+        );
+
+        showResults(
+          "1. All teams in Spain",
+          allTeams.filter((t) => t.country === "Spain")
+        );
+        showResults(
+          "2. All teams in Madrid, Spain",
+          allTeams.filter((t) => t.country === "Spain" && t.city === "Madrid")
+        );
+        showResults(
+          "3. All national teams",
+          allTeams.filter((t) => t.national === true)
+        );
+        showResults(
+          "4. All teams NOT in Spain",
+          allTeams.filter((t) => t.country !== "Spain")
+        );
+        showResults(
+          "5. All teams NOT in Spain or England",
+          allTeams.filter((t) => !["Spain", "England"].includes(t.country))
+        );
+        showResults(
+          "6. Teams in Spain with >700M fans",
+          allTeams.filter((t) => t.country === "Spain" && t.fans > 700)
+        );
+        showResults(
+          "7. Teams with 500M–600M fans",
+          allTeams.filter((t) => t.fans >= 500 && t.fans <= 600)
+        );
+        showResults(
+          "8. Teams where Ronaldo is a top scorer",
+          allTeams.filter((t) => t.top_scorers.includes("Ronaldo"))
+        );
+        showResults(
+          "9. Teams with Ronaldo, Maradona, or Messi as top scorers",
+          allTeams.filter((t) =>
+            ["Ronaldo", "Maradona", "Messi"].some((p) =>
+              t.top_scorers.includes(p)
+            )
+          )
+        );
+      };
+
+      const updateData = async () => {
+        const teamsSnapshot = await db.collection("teams").get();
+        let realMadridDoc = null;
+        let barcelonaDoc = null;
+
+        teamsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.name === "Real Madrid" || data.name === "Real Madrid FC")
+            realMadridDoc = doc;
+          if (data.name === "Barcelona" || data.name === "FC Barcelona")
+            barcelonaDoc = doc;
+        });
+
+        if (!realMadridDoc || !barcelonaDoc) {
+          console.error("One or both teams not found.");
+          return;
+        }
+
+        // Update primitive fields
+        await db
+          .collection("teams")
+          .doc(realMadridDoc.id)
+          .update({ name: "Real Madrid FC", fans: 811 });
+        await db
+          .collection("teams")
+          .doc(barcelonaDoc.id)
+          .update({ name: "FC Barcelona", fans: 747 });
+
+        // Update top_scorers arrays
+        const rmScorers = realMadridDoc
+          .data()
+          .top_scorers.filter((p) => p !== "Hazard");
+        rmScorers.push("Crispo");
+        await db
+          .collection("teams")
+          .doc(realMadridDoc.id)
+          .update({ top_scorers: rmScorers });
+
+        const barcaScorers = barcelonaDoc
+          .data()
+          .top_scorers.filter((p) => p !== "Puyol");
+        barcaScorers.push("Deco");
+        await db
+          .collection("teams")
+          .doc(barcelonaDoc.id)
+          .update({ top_scorers: barcaScorers });
+
+        // Add new color fields
+        await db
+          .collection("teams")
+          .doc(realMadridDoc.id)
+          .update({
+            color: { home: "White", away: "Black" },
+          });
+        await db
+          .collection("teams")
+          .doc(barcelonaDoc.id)
+          .update({
+            color: { home: "Red", away: "Gold" },
+          });
+
+        // Update nested away color
+        await db
+          .collection("teams")
+          .doc(realMadridDoc.id)
+          .update({ "color.away": "Purple" });
+        await db
+          .collection("teams")
+          .doc(barcelonaDoc.id)
+          .update({ "color.away": "Pink" });
+
+        console.log("Data updates completed.");
+      };
+
+      const main = async () => {
+        await seedData();
+        await runQueries();
+        await updateData();
+      };
+
+      main();
+    </script>
+  </body>
+</html>
